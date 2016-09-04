@@ -136,7 +136,8 @@ library(dplyr)</code></pre>
 ## 
 ##     intersect, setdiff, setequal, union</code></pre>
 <pre class="r"><code>library(ggplot2)
-
+# Output the figures to folder figure.
+knitr::opts_chunk$set(fig.path = &quot;figure/&quot;)
 # Set working directory and prepare data file. If the file doesn't exist, start downloading.
 setwd(&quot;~/Documents/Data Scientiest_Course/Reproducible&quot;)
 destfile &lt;- &quot;activity_monitoring_data.zip&quot;

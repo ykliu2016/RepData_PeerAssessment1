@@ -11,7 +11,8 @@ Load the required libraries and data file.
 # Load libraries
 library(dplyr)
 library(ggplot2)
-
+# Output the figures to folder figure.
+knitr::opts_chunk$set(fig.path = "figure/")
 # Set working directory and prepare data file. If the file doesn't exist, start downloading.
 setwd("~/Documents/Data Scientiest_Course/Reproducible")
 destfile <- "activity_monitoring_data.zip"

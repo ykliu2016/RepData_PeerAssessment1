@@ -1,25 +1,154 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity_Monitoring"
+author: "Yukun Liu"
+date: "3 September 2016"
+output: html_document
 ---
 
+## Data file preparation
+Load the required libraries and data file.
+```{r echo=TRUE}
+# Load libraries
+library(dplyr)
+library(ggplot2)
+
+# Set working directory and prepare data file. If the file doesn't exist, start downloading.
+setwd("~/Documents/Data Scientiest_Course/Reproducible")
+destfile <- "activity_monitoring_data.zip"
+if (!file.exists(destfile)) {  
+        # if destfile doesn't exist, start downloading the file from the provided url.
+        fileurl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+        download.file(fileurl, destfile, method = "curl")
+        unzip(destfile)
+}
+```
 
 ## Loading and preprocessing the data
 
+Using read.csv() to read the csv file activity.csv into raw data frame raw_activity. 
+Data frame activity is used to exclude missing values (steps = NA).
 
+```{r echo=TRUE}
+raw_activity <- read.csv("activity.csv", na.strings = "NA")
 
-## What is mean total number of steps taken per day?
+# Remove rows with steps is na.
+activity <- raw_activity[!is.na(raw_activity$steps),]
+# Show the preprocessed data
+summary(activity)
+head(activity)
+dim(activity)
+```
 
+## What is the total number of steps taken per day?
+Using dplyr package, we can group data frame activity and calculate the steps per day. The result is saved into data frame steps_per_day
 
+```{r echo=TRUE}
+
+steps_per_day <- activity %>% 
+        group_by(date) %>%
+        summarise(steps = sum(steps)) %>%
+        data.frame()
+# Histogram for steps per day
+hist(steps_per_day$steps, breaks = 10, ylim = c(0, 25), 
+     main="Total Number of Steps Taken Per Day")
+
+# mean of the total number of steps per day
+mean(steps_per_day$steps)
+# mean of the total number of steps per day
+median(steps_per_day$steps)
+```
 
 ## What is the average daily activity pattern?
 
+```{r echo=TRUE}
+# Calculate the average steps per interval across all days.
+steps_per_interval <- activity %>%
+        group_by(interval) %>%
+        summarise(steps = mean(steps)) %>%
+        data.frame()
 
+# Convert the interval variable into time format
+x <- strptime(formatC(steps_per_interval$interval, width=4, flag="0"), "%H%M")
+y <- steps_per_interval$steps
+
+# Plot the line chart
+plot(x, y, type = "l", main = "Average Daily Activity Pattern", 
+     xlab="Time", ylab="Average Steps", col="red")
+
+# Locate the interval with maximum number of steps
+df <- data.frame(interval = x, steps = y)
+xmax <- strftime(df[df$steps==max(df$steps),]$interval, "%H:%M")
+xmax
+
+```
 
 ## Imputing missing values
+Note that there are a number of days/intervals where there are missing values (coded as 𝙽𝙰). The presence of missing days may introduce bias into some calculations or summaries of the data.
 
+```{r echo=TRUE}
+# Calculate the total number of missing values in the raw data set raw_activity
 
+missing_steps <- raw_activity[is.na(raw_activity$steps),]
+length(missing_steps$steps)
+# Imputing the missing value with mean steps of the interval where the missing value is located
 
-## Are there differences in activity patterns between weekdays and weekends?
+avg_steps <- data.frame(steps_per_interval)
+
+missing_steps.avg <- merge(missing_steps, avg_steps, by = "interval")
+steps <- missing_steps.avg$steps.y
+date <- missing_steps.avg$date
+interval <- missing_steps.avg$interval
+
+# Data frame with all missing values filled in with average steps per interval
+activity.completed <- rbind(activity, data.frame(steps, date, interval))
+
+# Re-calculate total number of steps taken per day 
+steps_per_day <- activity.completed %>% 
+        group_by(date) %>%
+        summarise(steps = sum(steps)) %>%
+        data.frame()
+
+# Histogram for steps per day with missing values filled
+hist(steps_per_day$steps, breaks = 10, ylim = c(0, 25), 
+     main="Total Number of Steps Taken Per Day (Imputing Missing Values)")
+# mean of the total number of steps per day
+mean(steps_per_day$steps)
+# mean of the total number of steps per day
+median(steps_per_day$steps)
+# 
+```
+The missing values had slight impact on the median steps per day and no impact on the average (mean) steps per day if filled with average (mean) steps per interval.
+
+However, the total number of steps taken per day would be notably increased with imputing missing values according to the revised histograms. 
+
+## Pattern differences between weekdays and weekends
+
+```{r echo=TRUE}
+
+wdays <- c("Mon", "Tue", "Wed", "Thu", "Fri")
+
+activity.completed$day <- weekdays(as.Date(activity.completed$date), abbreviate = TRUE)
+
+activity.completed$wday <- factor((activity.completed$day %in% wdays), 
+                                  levels=c(FALSE, TRUE), labels=c('Weekend', 'Weekday')
+                                  )
+# Calculate the average steps per interval across all days.
+steps_per_interval <- activity.completed %>%
+        group_by(interval, wday) %>%
+        summarise(steps = mean(steps)) %>%
+        data.frame()
+
+# Convert the interval variable into time format
+
+x <- steps_per_interval$interval
+y <- steps_per_interval$steps
+wday <- steps_per_interval$wday
+
+df <- data.frame(interval = x, steps = y, wday = wday)
+# Plot the line chart with ggplot
+
+p <- ggplot(df, aes(x = interval, y = steps))
+p + geom_line(color="blue") + facet_grid(wday ~ .) + 
+        ggtitle("Average Daily Activity Pattern") + 
+        xlab("Interval") + ylab("Number of Steps") 
+```
